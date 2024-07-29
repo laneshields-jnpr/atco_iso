@@ -1,0 +1,17 @@
+{
+  "node-role": "combo",
+  "node-ip": "127.0.0.1",
+  "node-name": "dummy-node",
+  "router-name": "dummy-router",
+  "admin-password": "$6$h00PFvC.bUKgGA1b$el4g7JiFsJjHYYIG6tvC.mqaykFT.N/OZrRLloOXqyzOB4ZlUmwwi.k2ONJjDo3vLffIsvtnKIqL1jBWn59nO0",
+  "conductor": {
+    "primary": {
+      "name": "conductor-node-one",
+      "ip": "204.191.179.65"
+    },
+    "secondary": {
+      "name": "conductor-node-two",
+      "ip": "206.174.218.163"
+    }
+  }
+}

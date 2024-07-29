@@ -1,0 +1,24 @@
+# Juniper SSR script to set sysconfig defaults at first boot
+
+# This must run as a network-pre.target dependency.
+# i.e. after network devices are created (and renamed by udev) but before networking
+# is accessed by any system/application processes
+#
+# As 128T-cleanup.service runs /usr/bin/interfaceRestore.sh which needs ifcfg files,
+# we use that as the dependency
+
+
+[Unit]
+Description=128T firstboot sysconfig networking
+Before=128T-cleanup.service
+Before=firewalld.service
+After=systemd-udev-settle.service
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/t128-firstboot-setup.sh
+ExecStop=/bin/systemctl disable 128T-firstboot-setup.service
+
+[Install]
+WantedBy=network-pre.target

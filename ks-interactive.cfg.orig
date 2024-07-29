@@ -1,0 +1,149 @@
+#version=DEVEL
+# System authorization information
+auth --enableshadow --passalgo=sha512
+
+# Use text install
+text
+shutdown
+firstboot --disable
+
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_US.UTF-8
+
+install
+cdrom
+
+# Configure Customer Specific Users
+%include /mnt/install/repo/setup_users.sh
+
+# System Timezone (--isUtc assumes HW clock uses UTC)
+timezone UTC --isUtc
+
+# setup partitions plus install bootloader
+%include /mnt/install/repo/setup_partitions_ks.cfg
+
+# Disable SELinux
+selinux --disabled
+
+%pre
+%end
+
+###############################################################################
+###############################################################################
+##
+##  WARNING:		Do not make manual edits to the packages section; they will be
+##           discarded by the ISO generation tool when the ISO is created!!!
+##           (edits made before this comment will be carried over to the
+##           ISO kickstart file
+##
+###############################################################################
+###############################################################################
+%packages
+@core
+128T-installer
+128T
+128T-manifest
+128T-deprecated-packages
+NetworkManager-wifi
+NetworkManager-ppp
+NetworkManager-team
+NetworkManager-tui
+bash-completion
+createrepo
+grubby
+htop
+ipmitool
+kexec-tools
+lm_sensors
+lshw
+mcelog
+net-tools
+nmap-ncat
+screen
+tcpdump
+wget
+yum-utils
+cloud-utils-growpart
+grub2
+grub2-efi-x64
+efibootmgr
+efivar-libs
+128T-monitoring-agent
+%end
+###############################################################################
+##  END of generated section -- edits after this comment will be added to the
+##  ISO kickstart file
+###############################################################################
+
+%addon com_redhat_kdump --enable
+%end
+
+%post --nochroot --log=/mnt/sysimage/root/ks-post.log
+
+INSTALLER_FILES=/mnt/install/repo
+INSTALLED_ROOT=/mnt/sysimage
+
+%include /mnt/install/repo/init_local_repo_show_progress.cfg
+
+# Disable crony and ntp services
+chroot $INSTALLED_ROOT systemctl disable chronyd
+chroot $INSTALLED_ROOT systemctl disable ntpd
+
+# Install 128T-installer's repo.rpm....
+%include /mnt/install/repo/setup_installer_repo.sh
+
+# Uncomment if Installing 128T RPM via install128t after first boot. It is
+# essential that the mkiso.sh config file use the '-' prefix on the 128T rpm
+# annaconda from doing the 128T rpm install.
+#%include /mnt/install/repo/setup_local_repo.sh
+
+# Journal entries should persist accross reboots
+echo "Persist Journal entries accross reboots..."
+JOURNAL_CONF_DIR=/usr/lib/systemd/journald.conf.d
+JOURNAL_CONF_FILE=$JOURNAL_CONF_DIR'/10-journald-defaults.conf'
+chroot $INSTALLED_ROOT bash -c "mkdir -p $JOURNAL_CONF_DIR && echo -e \\"# Persist journal store across system reboots\\n[Journal]\\nStorage=persistent\\" >> $JOURNAL_CONF_FILE"
+if [ $? -ne 0 ] ; then
+"Persist Journal entries FAILED!!!..."
+fi
+
+# configure coredumps in the installed context
+echo "Enable core dumps..."
+chroot $INSTALLED_ROOT bash -c "echo 'kernel.core_pattern=|/usr/lib/systemd/systemd-coredump %p %u %g %s %t %e' > /usr/lib/sysctl.d/50-coredump.conf"
+
+# setup firewalld rules
+%include /mnt/install/repo/setup_firewalld.sh
+
+# Disable SSH Reverse DNS
+%include /mnt/install/repo/disable_ssh_reverse_dns.sh
+
+# disable root logins [ from ssh only until we fix our SW running as root ]
+#%include /mnt/install/repo/disable_root.sh
+# allow root ssh logins via template variable as otherwise this breaks
+# initializing 2nd node of HA pair :-(
+%include /mnt/install/repo/setup_ssh.sh
+
+# setup login banner
+echo "Setup Login Banner"
+cp $INSTALLER_FILES/motd.txt $INSTALLED_ROOT/root/motd.txt
+chroot $INSTALLED_ROOT mv -f /root/motd.txt /etc/motd
+
+# Copy 128T-ISO-release file
+cp $INSTALLER_FILES/128T-ISO-release $INSTALLED_ROOT/etc/128technology/version-info/128T-ISO-release
+chmod 644 $INSTALLED_ROOT/etc/128technology/version-info/128T-ISO-release
+
+# Setup post-install boot menu (not required)
+# %include /mnt/install/repo/setup_bootmenu.sh
+
+# setup the firstboot service.. this should be a templatized snippet
+%include /mnt/install/repo/setup_init128t.sh
+
+# copy logs, ISO info, etc... to default /var/log/128T-iso
+%include /mnt/install/repo/copy_install_info.cfg
+
+# Prompt user to remove media before reboot.  This is very primitive
+%include /mnt/install/repo/prompt_for_shutdown.cfg
+
+# End of %post section
+%end

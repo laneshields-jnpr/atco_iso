@@ -1,0 +1,11 @@
+[Unit]
+Description=One shot service to bootstrap 128T platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/bootstrap128t.sh
+
+[Install]
+WantedBy=multi-user.target
